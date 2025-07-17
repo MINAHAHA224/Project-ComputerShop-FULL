@@ -29,7 +29,7 @@ import org.springframework.validation.annotation.Validated;
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
-
+@Builder
 @Validated
 @Entity
 @Table(name = "users")
