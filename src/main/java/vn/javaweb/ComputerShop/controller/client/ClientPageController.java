@@ -6,8 +6,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.http.HttpSession;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.validation.BindingResult;
@@ -26,10 +24,10 @@ import vn.javaweb.ComputerShop.domain.dto.request.ProductFilterDTO;
 import vn.javaweb.ComputerShop.domain.dto.request.UserProfileUpdateDTO;
 import vn.javaweb.ComputerShop.domain.dto.response.ProductFilterRpDTO;
 import vn.javaweb.ComputerShop.domain.dto.response.ProductRpDTO;
-import vn.javaweb.ComputerShop.domain.dto.response.ResponseBodyDTO;
-import vn.javaweb.ComputerShop.service.ProductService;
-import vn.javaweb.ComputerShop.service.UploadService;
-import vn.javaweb.ComputerShop.service.UserService;
+import vn.javaweb.ComputerShop.domain.dto.response.ResponseBody;
+import vn.javaweb.ComputerShop.service.product.ProductService;
+import vn.javaweb.ComputerShop.service.upload.UploadService;
+import vn.javaweb.ComputerShop.service.user.UserService;
 
 @Controller
 @RequiredArgsConstructor
@@ -139,7 +137,7 @@ public class ClientPageController {
                 return "client/profile/index";
             }
 
-        ResponseBodyDTO updateProfile = this.userService.handleUpdateProfile (session , userProfileUpdateDTO,locale);
+        ResponseBody updateProfile = this.userService.handleUpdateProfile (session , userProfileUpdateDTO,locale);
 
         if (updateProfile.getStatus() != 200 ){
             model.addAttribute("userProfileUpdateDTO", userProfileUpdateDTO);
@@ -187,7 +185,7 @@ public class ClientPageController {
             return "client/profile/index";
         }
 
-        ResponseBodyDTO updatePassword  = this.userService.handleUpdatePassword (session , changePasswordDTO , locale);
+        ResponseBody updatePassword  = this.userService.handleUpdatePassword (session , changePasswordDTO , locale);
         if (updatePassword.getStatus() != 200 ){
             redirectAttributes.addFlashAttribute("messageError" , updatePassword.getMessage());
             return "redirect:/account-management";
@@ -205,7 +203,7 @@ public class ClientPageController {
                                    HttpSession session , RedirectAttributes redirectAttributes,
                                    @RequestParam("avatarFile") MultipartFile avatarFile){
 
-       ResponseBodyDTO updateAvatar = this.userService.handleUpdateAvatar ( session , avatarFile , locale);
+       ResponseBody updateAvatar = this.userService.handleUpdateAvatar ( session , avatarFile , locale);
 
        if (updateAvatar.getStatus() != 200 ){
            redirectAttributes.addFlashAttribute("messageError" , updateAvatar.getMessage());

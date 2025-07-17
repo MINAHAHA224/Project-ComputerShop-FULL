@@ -2,6 +2,7 @@ package vn.javaweb.ComputerShop.domain.enums;
 
 import lombok.Getter;
 
+import java.util.HashMap;
 import java.util.Map;
 import java.util.TreeMap;
 @Getter
@@ -22,7 +23,7 @@ public enum OrderStatus {
     }
 
     public static Map<String, String> getOrderStatusMap() {
-        Map<String, String> map = new TreeMap<>();
+        Map<String, String> map = new HashMap<>();
         for (OrderStatus status : OrderStatus.values()) {
             map.put(status.name(), status.description);
         }

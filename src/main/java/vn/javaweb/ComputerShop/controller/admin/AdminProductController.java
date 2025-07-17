@@ -4,9 +4,6 @@ import java.util.List;
 import java.util.Optional;
 
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -24,10 +21,10 @@ import vn.javaweb.ComputerShop.domain.dto.request.ProductCreateRqDTO;
 import vn.javaweb.ComputerShop.domain.dto.request.ProductUpdateRqDTO;
 import vn.javaweb.ComputerShop.domain.dto.response.ProductDetailRpDTO;
 import vn.javaweb.ComputerShop.domain.dto.response.ProductFilterAdRpDTO;
-import vn.javaweb.ComputerShop.domain.dto.response.ResponseBodyDTO;
-import vn.javaweb.ComputerShop.domain.entity.ProductEntity;
-import vn.javaweb.ComputerShop.service.ProductService;
-import vn.javaweb.ComputerShop.service.UploadService;
+import vn.javaweb.ComputerShop.domain.dto.response.ResponseBody;
+import vn.javaweb.ComputerShop.service.product.ProductService;
+
+import vn.javaweb.ComputerShop.service.upload.UploadService;
 
 @Controller
 @RequiredArgsConstructor
@@ -71,7 +68,7 @@ public class AdminProductController {
         }
 
 
-        ResponseBodyDTO response = this.productService.handleCreateProduct(productCreateRqDTO , file);
+        ResponseBody response = this.productService.handleCreateProduct(productCreateRqDTO , file);
        if ( response.getStatus() == 200 ){
            model.addAttribute("messageSuccess" , response.getMessage());
            model.addAttribute("productCreateRqDTO" , new ProductCreateRqDTO());
@@ -114,7 +111,7 @@ public class AdminProductController {
             model.addAttribute("productUpdateRqDTO" , productUpdateRqDTO);
             return "admin/product/update";
         }
-        ResponseBodyDTO response = this.productService.handleUpdateProduct(productUpdateRqDTO , file);
+        ResponseBody response = this.productService.handleUpdateProduct(productUpdateRqDTO , file);
         if ( response.getStatus() == 200 ){
             redirectAttributes.addFlashAttribute("messageSuccess" , response.getMessage());
             return "redirect:/admin/product";
@@ -131,7 +128,7 @@ public class AdminProductController {
     @GetMapping("/admin/product/delete/{id}")
     public String getDeleteProduct(Model model, @PathVariable("id") Long id , RedirectAttributes redirectAttributes) {
 
-        ResponseBodyDTO deleteProduct = this.productService.handleDeleteProduct(id);
+        ResponseBody deleteProduct = this.productService.handleDeleteProduct(id);
         if ( deleteProduct.getStatus() == 200 ){
             redirectAttributes.addFlashAttribute("messageSuccess" , deleteProduct.getMessage());
         }else {

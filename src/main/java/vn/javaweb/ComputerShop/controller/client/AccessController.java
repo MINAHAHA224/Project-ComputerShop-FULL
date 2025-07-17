@@ -1,11 +1,8 @@
 package vn.javaweb.ComputerShop.controller.client;
 
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.validation.BindingResult;
@@ -16,28 +13,24 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.servlet.ModelAndView;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
-import org.springframework.web.servlet.support.RequestContextUtils;
-import vn.javaweb.ComputerShop.component.MessageService;
+import vn.javaweb.ComputerShop.component.MessageComponent;
 import vn.javaweb.ComputerShop.domain.dto.request.InformationDTO;
 import vn.javaweb.ComputerShop.domain.dto.request.LoginDTO;
 import vn.javaweb.ComputerShop.domain.dto.request.RegisterDTO;
 import vn.javaweb.ComputerShop.domain.dto.request.ResetPasswordDTO;
-import vn.javaweb.ComputerShop.domain.dto.response.ProductRpDTO;
-import vn.javaweb.ComputerShop.domain.dto.response.ResponseBodyDTO;
-import vn.javaweb.ComputerShop.domain.entity.UserEntity;
-import vn.javaweb.ComputerShop.service.ProductService;
-import vn.javaweb.ComputerShop.service.UserService;
+import vn.javaweb.ComputerShop.domain.dto.response.ResponseBody;
+import vn.javaweb.ComputerShop.service.product.ProductService;
+import vn.javaweb.ComputerShop.service.user.UserService;
 import java.util.Locale;
 
 import java.util.List;
-import java.util.Map;
 
 @Controller
 @RequiredArgsConstructor
 public class AccessController {
     private final UserService userService;
     private final ProductService productService;
-    private final MessageService messageService;
+    private final MessageComponent messageComponent;
 
     @GetMapping("/login")
     public String getLogin(Model model , Locale locale) {
@@ -62,7 +55,7 @@ public class AccessController {
             model.addAttribute("loginDTO", loginDTO);
             return "client/auth/login";
         }
-        ResponseBodyDTO handleLogin = this.userService.handleLogin(loginDTO, session , locale);
+        ResponseBody handleLogin = this.userService.handleLogin(loginDTO, session , locale);
         if (handleLogin.getStatus() == 200 && ((InformationDTO) handleLogin.getData()).getRole().equals("ADMIN")) {
             session.setAttribute("informationDTO", handleLogin.getData());
             model.addAttribute("messageSuccess" ,handleLogin.getMessage());
@@ -98,7 +91,7 @@ public class AccessController {
             return "client/auth/register";
         }
 
-        ResponseBodyDTO handleRegister = this.userService.handleRegister(registerDTO , locale);
+        ResponseBody handleRegister = this.userService.handleRegister(registerDTO , locale);
         if (handleRegister.getStatus() == 200) {
             model.addAttribute("messageSuccess", handleRegister.getMessage());
             return "redirect:/login";
@@ -118,7 +111,7 @@ public class AccessController {
     public String handleGoogleCallback(@RequestParam("code") String code , RedirectAttributes redirectAttributes
             , HttpSession session , Model model ,Locale locale) {
 
-        ResponseBodyDTO result = this.userService.handleLoginOauth2Google(code, locale, session);
+        ResponseBody result = this.userService.handleLoginOauth2Google(code, locale, session);
         if ( result.getStatus() == 200) {
             InformationDTO informationDTO = (InformationDTO) result.getData();
             session.setAttribute("informationDTO", informationDTO);
@@ -141,7 +134,7 @@ public class AccessController {
     public String postForgotPassword(Model model
             , @RequestParam(name = "email", required = true) String email
             , RedirectAttributes redirectAttributes , Locale locale) {
-        ResponseBodyDTO sendOTPtoEmail = this.userService.handleSendOTP(email.trim() , locale);
+        ResponseBody sendOTPtoEmail = this.userService.handleSendOTP(email.trim() , locale);
         if (sendOTPtoEmail.getStatus() != 200) {
             model.addAttribute("messageError", sendOTPtoEmail.getMessage());
             model.addAttribute("email", email.trim());
@@ -172,7 +165,7 @@ public class AccessController {
             , @RequestParam(name = "action", required = true) String action
             , RedirectAttributes redirectAttributes , Locale locale) {
         if (action.equals("VERIFY-OTP")) {
-            ResponseBodyDTO sendOTPtoEmail = this.userService.handleVerifyOTP(email, OTP , locale);
+            ResponseBody sendOTPtoEmail = this.userService.handleVerifyOTP(email, OTP , locale);
             if (sendOTPtoEmail.getStatus() != 200) {
                 model.addAttribute("email", email);
                 model.addAttribute("messageError", sendOTPtoEmail.getMessage());
@@ -186,7 +179,7 @@ public class AccessController {
             }
         }
         if (action.equals("RESENT-OTP")) {
-            ResponseBodyDTO resentOtp = this.userService.handleSendOTP(email.trim() , locale);
+            ResponseBody resentOtp = this.userService.handleSendOTP(email.trim() , locale);
             model.addAttribute("email", email.trim());
             model.addAttribute("messageSuccess", resentOtp.getMessage());
             return "client/auth/verifyOTP";
@@ -223,7 +216,7 @@ public class AccessController {
             return "client/auth/resetPassword";
         }
 
-        ResponseBodyDTO handleResetPass = this.userService.handleResetPassword(resetPasswordDTO , locale);
+        ResponseBody handleResetPass = this.userService.handleResetPassword(resetPasswordDTO , locale);
         if (handleResetPass.getStatus() == 200) {
             redirectAttributes.addFlashAttribute("messageSuccess", handleResetPass.getMessage());
             return "redirect:/login";

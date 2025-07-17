@@ -18,7 +18,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 
 import jakarta.servlet.DispatcherType;
-import vn.javaweb.ComputerShop.repository.UserRepository;
+import vn.javaweb.ComputerShop.repository.user.UserRepository;
 
 @Configuration
 @EnableMethodSecurity(securedEnabled = true)

@@ -12,6 +12,7 @@ import lombok.*;
 @AllArgsConstructor
 @ToString
 @Entity
+@Builder
 @Table(name = "carts")
 public class CartEntity {
     @Id

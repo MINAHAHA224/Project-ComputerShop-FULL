@@ -24,6 +24,7 @@ import org.springframework.validation.annotation.Validated;
 @AllArgsConstructor
 @ToString
 @Entity
+@Builder
 @Validated
 @Table(name = "products")
 public class ProductEntity {

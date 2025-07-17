@@ -11,6 +11,7 @@ import org.springframework.validation.annotation.Validated;
 @NoArgsConstructor
 @AllArgsConstructor
 @ToString
+@Builder
 @Validated
 public class OrderUpdateRqDTO {
     private Long id; // Không có validation

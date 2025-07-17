@@ -10,6 +10,7 @@
     @NoArgsConstructor
     @AllArgsConstructor
     @ToString
+    @Builder
     public class OrderRpDTO {
 
         private Long id;

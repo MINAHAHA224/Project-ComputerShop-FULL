@@ -1,13 +1,11 @@
 package vn.javaweb.ComputerShop.controller.admin;
 
-import java.util.ArrayList;
 import java.util.List;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Controller;
 import org.springframework.validation.BindingResult;
-import org.springframework.validation.FieldError;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -16,13 +14,10 @@ import org.springframework.web.bind.annotation.PostMapping;
 
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 import vn.javaweb.ComputerShop.domain.dto.request.OrderUpdateRqDTO;
-import vn.javaweb.ComputerShop.domain.dto.response.OrderDetailRpDTO;
 import vn.javaweb.ComputerShop.domain.dto.response.OrderRpDTO;
-import vn.javaweb.ComputerShop.domain.dto.response.ResponseBodyDTO;
-import vn.javaweb.ComputerShop.domain.entity.OrderEntity;
-import vn.javaweb.ComputerShop.repository.OrderDetailRepository;
-import vn.javaweb.ComputerShop.repository.OrderRepository;
-import vn.javaweb.ComputerShop.service.OrderService;
+import vn.javaweb.ComputerShop.domain.dto.response.ResponseBody;
+import vn.javaweb.ComputerShop.service.order.OrderService;
+
 
 @Controller
 @RequiredArgsConstructor
@@ -66,7 +61,7 @@ public class AdminOrderController {
             return "admin/order/update";
         }
 
-        ResponseBodyDTO response = this.orderService.handleUpdateOrderRqAd(orderView);
+        ResponseBody response = this.orderService.handleUpdateOrderRqAd(orderView);
         if ( response.getStatus() != 200 ){
             model.addAttribute("orders", orderView);
             model.addAttribute("messageError" ,response.getMessage() );
@@ -81,7 +76,7 @@ public class AdminOrderController {
 
     @GetMapping("/admin/order/delete/{id}")
     public String getDeleteOrderPage(Model model, @PathVariable long id , RedirectAttributes redirectAttributes) {
-        ResponseBodyDTO handleDelete = this.orderService.handleDeleteOrder(id);
+        ResponseBody handleDelete = this.orderService.handleDeleteOrder(id);
         if (handleDelete.getStatus() != 200 ){
             redirectAttributes.addFlashAttribute("messageError" ,handleDelete.getMessage() );
 

@@ -9,6 +9,7 @@ import org.springframework.validation.annotation.Validated;
 @AllArgsConstructor
 @NoArgsConstructor
 @ToString
+@Builder
 @Validated
 public class ProductUpdateRqDTO {
     private Long id; // Không có validation

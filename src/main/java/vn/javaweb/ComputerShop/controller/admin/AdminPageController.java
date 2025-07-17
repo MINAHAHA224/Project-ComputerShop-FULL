@@ -6,7 +6,7 @@ import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
 import vn.javaweb.ComputerShop.domain.dto.response.CountElementDTO;
-import vn.javaweb.ComputerShop.service.AdminService;
+import vn.javaweb.ComputerShop.service.user.AdminService;
 
 @Controller
 @RequiredArgsConstructor

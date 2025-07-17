@@ -15,6 +15,7 @@ import lombok.*;
 @AllArgsConstructor
 @ToString
 @Entity
+@Builder
 @Table(name = "cart_detail")
 public class CartDetailEntity {
 

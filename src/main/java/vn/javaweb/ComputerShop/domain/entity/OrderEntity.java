@@ -12,6 +12,7 @@ import lombok.*;
 @AllArgsConstructor
 @ToString
 @Entity
+@Builder
 @Table(name = "orders")
 public class OrderEntity {
     @Id

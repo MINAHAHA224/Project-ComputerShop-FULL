@@ -16,14 +16,14 @@ import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 import vn.javaweb.ComputerShop.domain.dto.request.CartDetailsListDTO;
 import vn.javaweb.ComputerShop.domain.dto.request.InfoOrderRqDTO;
 import vn.javaweb.ComputerShop.domain.dto.request.momo.MomoRpDTO;
-import vn.javaweb.ComputerShop.domain.dto.request.momo.MomoRpRedirectDTO;
 import vn.javaweb.ComputerShop.domain.dto.response.*;
 import vn.javaweb.ComputerShop.domain.entity.OrderEntity;
-import vn.javaweb.ComputerShop.service.CartService;
-import vn.javaweb.ComputerShop.service.OrderService;
-import vn.javaweb.ComputerShop.service.ProductService;
+import vn.javaweb.ComputerShop.service.cart.CartService;
+import vn.javaweb.ComputerShop.service.order.OrderService;
+import vn.javaweb.ComputerShop.service.product.ProductService;
 
 import vn.javaweb.ComputerShop.service.payment.MomoService;
+import vn.javaweb.ComputerShop.domain.dto.response.ResponseBody;
 
 @Controller
 @RequiredArgsConstructor
@@ -48,8 +48,8 @@ public class ClientProductController {
     @PostMapping("/add-product-to-cart/{id}")
     public String addProductToCart(@PathVariable("id") Long productId
             , HttpSession session , Model model , Locale locale , RedirectAttributes redirectAttributes ) {
-        ResponseBodyDTO responseBodyDTO = this.cartService.handleAddOneProductToCart(session , productId , locale);
-        redirectAttributes.addFlashAttribute("messageSuccess" ,responseBodyDTO.getMessage() );
+        ResponseBody responseBody = this.cartService.handleAddOneProductToCart(session , productId , locale);
+        redirectAttributes.addFlashAttribute("messageSuccess" , responseBody.getMessage() );
         return "redirect:/home";
     }
 
@@ -69,7 +69,7 @@ public class ClientProductController {
     public String deleteCartDetail(@PathVariable("id") Long id,
                                    HttpSession session ,Locale locale,
                                    Model model , RedirectAttributes redirectAttributes) {
-        ResponseBodyDTO result = this.cartService.handleDeleteProductInCart(id , session,locale);
+        ResponseBody result = this.cartService.handleDeleteProductInCart(id , session,locale);
         if ( result.getStatus() == 200 ){
             redirectAttributes.addFlashAttribute("messageSuccess" ,result.getMessage() );
         }else {
@@ -82,7 +82,7 @@ public class ClientProductController {
     @PostMapping("/confirm-checkout")
     public String postConfirmCheckout(Model  model , Locale locale
             ,@ModelAttribute("cartDetailsListDTO") CartDetailsListDTO cartDetailsListDTO , HttpSession session) {
-        ResponseBodyDTO response=  this.productService.handleConfirmCheckout(cartDetailsListDTO , locale);
+        ResponseBody response=  this.productService.handleConfirmCheckout(cartDetailsListDTO , locale);
         model.addAttribute("messageSuccess" , response.getMessage());
 
         CheckoutRpDTO result = this.cartService.handleShowDataAfterCheckout(session);
@@ -114,7 +114,7 @@ public class ClientProductController {
 
 
         String methodPayment = infoOrderRqDTO.getPaymentMethod();
-        ResponseBodyDTO orderCreationResponse = this.cartService.handleCreateOrder(session, infoOrderRqDTO,locale);
+        ResponseBody orderCreationResponse = this.cartService.handleCreateOrder(session, infoOrderRqDTO,locale);
 
         if (orderCreationResponse.getStatus() != 200 || orderCreationResponse.getData() == null || !(orderCreationResponse.getData() instanceof OrderEntity)) {
             model.addAttribute("messageError", "Không thể tạo đơn hàng. " + orderCreationResponse.getMessage());
@@ -177,7 +177,7 @@ public class ClientProductController {
             @RequestParam("quantity") Long quantity,Locale locale,
             HttpSession session , Model model , RedirectAttributes redirectAttributes) {
 
-      ResponseBodyDTO response =  this.cartService.handleAddProductDetailToCart( id, session, quantity ,locale);
+      ResponseBody response =  this.cartService.handleAddProductDetailToCart( id, session, quantity ,locale);
         redirectAttributes.addFlashAttribute("messageSuccess" , response.getMessage());
         return "redirect:/cart";
     }
@@ -186,7 +186,7 @@ public class ClientProductController {
     @GetMapping(value = "/endpoint-payment-online")
     public String getThanksPage (MomoRpDTO momoRpDTO ,
                                  Model model , RedirectAttributes redirectAttributes){
-        ResponseBodyDTO response = this.orderService.handleCompleteOrderPaymentOnline (momoRpDTO);
+        ResponseBody response = this.orderService.handleCompleteOrderPaymentOnline (momoRpDTO);
 
         if ( response.getStatus() == 200){
             model.addAttribute("messageSuccess" , response.getMessage());

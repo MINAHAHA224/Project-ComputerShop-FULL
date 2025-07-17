@@ -2,6 +2,7 @@ package vn.javaweb.ComputerShop.domain.enums;
 
 import lombok.Getter;
 
+import java.util.HashMap;
 import java.util.Map;
 import java.util.TreeMap;
 @Getter
@@ -18,7 +19,7 @@ public enum PaymentStatus {
     }
 
     public static Map<String, String> getPaymentStatusMap() {
-        Map<String, String> map = new TreeMap<>();
+        Map<String, String> map = new HashMap<>();
         for (PaymentStatus status : PaymentStatus.values()) {
             map.put(status.name(), status.description);
         }

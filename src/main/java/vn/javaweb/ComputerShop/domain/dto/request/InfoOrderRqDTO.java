@@ -12,6 +12,7 @@ import org.springframework.validation.annotation.Validated;
 @NoArgsConstructor
 @AllArgsConstructor
 @ToString
+@Builder
 @Validated
 public class InfoOrderRqDTO {
     @NotBlank(message = "{InfoOrderRqDTO.receiverName.NotBlank}")
