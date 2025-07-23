@@ -16,6 +16,8 @@ import vn.javaweb.ComputerShop.domain.dto.response.ProductReportDto;
 import vn.javaweb.ComputerShop.domain.dto.response.RoleSimpleDto;
 import vn.javaweb.ComputerShop.domain.dto.response.UserReportDto;
 import vn.javaweb.ComputerShop.domain.enums.OrderStatus;
+import vn.javaweb.ComputerShop.utils.ConstantVariable;
+import vn.javaweb.ComputerShop.utils.StoreProcedureConstance;
 
 import java.sql.Timestamp; // Thêm import này
 import java.text.ParseException; // Thêm import này
@@ -23,6 +25,7 @@ import java.text.ParseException; // Thêm import này
 import java.io.IOException;
 import java.text.SimpleDateFormat;
 import java.util.*;
+import java.util.stream.Collectors;
 
 @Service
 @Slf4j
@@ -34,7 +37,31 @@ public class ExportExcelServiceImpl implements ExportExcelService {
     @Override
     public List<ProductReportDto> getProductsForReport(String factory) {
         List<ProductReportDto> result = new ArrayList<>();
-        StringBuilder sqlBuilder = new StringBuilder("SELECT id, name, price, short_desc, quantity, sold FROM products");
+        /* Apply StoreProcedure for feature excel
+               try {
+        Query query = query.CreateNativeQuery(StoreProcedureConstance.Export_Data_Product);
+        query.setParameter(1, factory);
+        List<Object[]> listResult = query.getResultList();
+        result = listResult.stream().map(rs ->
+                    ProductReportDto.builder()
+                            .id(Long.valueOf(rs[0].toString()))
+                            .name(rs[1].toString())
+                            .price((Double) rs[2])
+                            .shortDesc(rs[3].toString())
+                            .quantity(Long.valueOf(rs[4].toString()))
+                            .sold(Long.valueOf(rs[5].toString()))
+                            .build()
+            ).collect(Collectors.toList());
+            } catch (RuntimeException e ){
+            log.warn("--ERROR getProductsForReport: {} ", e.getMessage());
+            System.err.println("--ERROR getProductsForReport: " + e.getMessage());
+            }
+
+         */
+        StringBuilder sqlBuilder = new StringBuilder(
+                "SELECT id, name, price, short_desc, quantity, sold " +
+                        "FROM products USE INDEX (IX_FACTORY_PRODUCTS , IX_NAME_PRODUCTS)"
+        );
         boolean hasFactoryFilter = factory != null && !factory.trim().isEmpty();
 
         if (hasFactoryFilter) {
@@ -43,24 +70,21 @@ public class ExportExcelServiceImpl implements ExportExcelService {
         sqlBuilder.append(" ORDER BY name ASC"); // Sắp xếp theo tên cho dễ nhìn
 
         try {
-
-
-            Query query  = entityManager.createNativeQuery(sqlBuilder.toString() );
+            Query query = entityManager.createNativeQuery(sqlBuilder.toString());
             List<Object[]> listResult = query.getResultList();
-            for (Object[] rs : listResult){
-                ProductReportDto product = new ProductReportDto();
-                product.setId(Long.valueOf(rs[0].toString()));
-                product.setName(rs[1].toString());
-                product.setPrice((Double) rs[2]);
-                product.setShortDesc(rs[3].toString());
-                product.setQuantity(Long.valueOf(rs[4].toString()));
-                product.setSold(Long.valueOf(rs[5].toString()));
-                result.add(product);
-            }
+            result = listResult.stream().map(rs ->
+                    ProductReportDto.builder()
+                            .id(Long.valueOf(rs[0].toString()))
+                            .name(rs[1].toString())
+                            .price((Double) rs[2])
+                            .shortDesc(rs[3].toString())
+                            .quantity(Long.valueOf(rs[4].toString()))
+                            .sold(Long.valueOf(rs[5].toString()))
+                            .build()
+            ).collect(Collectors.toList());
         } catch (RuntimeException e) {
-            log.warn("--ERROR getProductsForReport: {} " ,  e.getMessage());
+            log.warn("--ERROR getProductsForReport: {} ", e.getMessage());
             System.err.println("--ERROR getProductsForReport: " + e.getMessage());
-            e.printStackTrace();
         }
         return result;
     }
@@ -68,15 +92,17 @@ public class ExportExcelServiceImpl implements ExportExcelService {
     @Override
     public List<String> getAllFactories() {
         List<String> factories = new ArrayList<>();
-        String sql = "SELECT DISTINCT factory FROM products WHERE factory IS NOT NULL AND factory <> '' ORDER BY factory ASC";
+        String sql = "SELECT DISTINCT factory " +
+                "FROM products USE INDEX (IX_FACTORY_PRODUCTS)  " +
+                "WHERE factory IS NOT NULL AND factory <> '' ORDER BY factory ASC";
         try {
-            Query query  = entityManager.createNativeQuery(sql );
+            Query query = entityManager.createNativeQuery(sql);
             factories = query.getResultList();
 
 
         } catch (RuntimeException e) {
+            log.error(ConstantVariable.ERROR_MES + "getAllFactories : {}", e.getMessage());
             System.err.println("--ERROR getAllFactories: " + e.getMessage());
-            e.printStackTrace();
         }
         return factories;
     }
@@ -97,7 +123,7 @@ public class ExportExcelServiceImpl implements ExportExcelService {
 
         Font tableHeaderFont = workbook.createFont();
         tableHeaderFont.setBold(true);
-        tableHeaderFont.setColor(IndexedColors.BLACK.getIndex());
+        tableHeaderFont.setColor(IndexedColors.BLUE.getIndex());
 
         // --- Cell Styles ---
         CellStyle titleStyle = workbook.createCellStyle();
@@ -240,24 +266,43 @@ public class ExportExcelServiceImpl implements ExportExcelService {
     }
 
 
-
     @Override
     public List<UserReportDto> getUsersForReport(String roleIdFilter) {
         List<UserReportDto> result = new ArrayList<>();
-        // SQL sẽ khác nhau tùy thuộc vào DB (ví dụ GROUP_CONCAT cho MySQL/MariaDB, STRING_AGG cho PostgreSQL)
-        // Đây là ví dụ cho MySQL/MariaDB
+//        StringBuilder sqlBuilder = new StringBuilder(
+//                "SELECT u.id, u.full_name, u.email, u.phone, u.address, r.name as role_name, " +
+//                        "(SELECT GROUP_CONCAT(am.login_type SEPARATOR ', ') FROM auth_method am WHERE am.user_id = u.id) as auth_methods " +
+//                        "FROM users u " +
+//                        "LEFT JOIN roles r ON u.role_id = r.id"
+//        );
+//
+//        boolean hasRoleFilter = roleIdFilter != null && !roleIdFilter.trim().isEmpty();
+//        if (hasRoleFilter) {
+//            sqlBuilder.append(" WHERE u.role_id = :roleId");
+//        }
+//        sqlBuilder.append(" ORDER BY u.full_name ASC, u.id ASC");
+
+        // SQL Optimize
         StringBuilder sqlBuilder = new StringBuilder(
-                "SELECT u.id, u.full_name, u.email, u.phone, u.address, r.name as role_name, " +
-                        "(SELECT GROUP_CONCAT(am.login_type SEPARATOR ', ') FROM auth_method am WHERE am.user_id = u.id) as auth_methods " +
-                        "FROM users u " +
-                        "LEFT JOIN roles r ON u.role_id = r.id"
+                "WITH role_option AS (\n" +
+                        "\tSELECT r.id , r.name\n" +
+                        "\tFROM roles r\n" +
+                        "\t),\n" +
+                        "\tauth_option AS (\n" +
+                        "\tSELECT au.id , au.user_id , au.login_type\n" +
+                        "\tFROM auth_method au\n" +
+                        "\t)\n" +
+                        "\tSELECT u.id , u.full_name AS fullName , u.email , u.phone , u.address , ro.name  AS role_name , ao.login_type  AS auth_methods\n" +
+                        "\tFROM users u USE INDEX (IX_FULLNAME_ID_USERNAME)\n" +
+                        "\tINNER JOIN role_option ro ON ro.id =  u.role_id\n" +
+                        "\tLEFT JOIN auth_option ao ON  u.id = ao.user_id "
         );
 
         boolean hasRoleFilter = roleIdFilter != null && !roleIdFilter.trim().isEmpty();
         if (hasRoleFilter) {
-            sqlBuilder.append(" WHERE u.role_id = :roleId");
+            sqlBuilder.append(" WHERE (:roleId IS NULL OR u.role_id = :roleId  ) ");
         }
-        sqlBuilder.append(" ORDER BY u.full_name ASC, u.id ASC");
+        sqlBuilder.append(" ORDER BY u.full_name , u.id ");
 
         try {
             Query query = entityManager.createNativeQuery(sqlBuilder.toString());
@@ -266,15 +311,20 @@ public class ExportExcelServiceImpl implements ExportExcelService {
                     query.setParameter("roleId", Long.parseLong(roleIdFilter));
                 } catch (NumberFormatException e) {
                     System.err.println("Invalid roleIdFilter format: " + roleIdFilter);
-                    // Handle error or don't apply filter if format is wrong
-                    hasRoleFilter = false; // Effectively ignore invalid filter
-                    // Re-create query without the role filter if it was invalid
+
                     query = entityManager.createNativeQuery(
-                            "SELECT u.id, u.full_name, u.email, u.phone, u.address, r.name as role_name, " +
-                                    "(SELECT GROUP_CONCAT(am.login_type SEPARATOR ', ') FROM auth_method am WHERE am.user_id = u.id) as auth_methods " +
-                                    "FROM users u " +
-                                    "LEFT JOIN roles r ON u.role_id = r.id " +
-                                    "ORDER BY u.full_name ASC, u.id ASC"
+                            "WITH role_option AS (\n" +
+                                    "\tSELECT r.id , r.name\n" +
+                                    "\tFROM roles r\n" +
+                                    "\t),\n" +
+                                    "\tauth_option AS (\n" +
+                                    "\tSELECT au.id , au.user_id , au.login_type\n" +
+                                    "\tFROM auth_method au\n" +
+                                    "\t)\n" +
+                                    "\tSELECT u.id , u.full_name AS fullName , u.email , u.phone , u.address , ro.name  AS role_name , ao.login_type  AS auth_methods\n" +
+                                    "\tFROM users u USE INDEX (IX_FULLNAME_ID_USERNAME)\n" +
+                                    "\tINNER JOIN role_option ro ON ro.id =  u.role_id\n" +
+                                    "\tLEFT JOIN auth_option ao ON  u.id = ao.user_id "
                     );
                 }
             }
@@ -300,7 +350,6 @@ public class ExportExcelServiceImpl implements ExportExcelService {
 
     /**
      * Lấy danh sách tất cả các vai trò (ID và Name).
-     *
      */
     @Override
     public List<RoleSimpleDto> getAllRoles() {
@@ -330,72 +379,112 @@ public class ExportExcelServiceImpl implements ExportExcelService {
         Sheet sheet = workbook.createSheet("Danh Sách Người Dùng");
 
         // --- Font Styles (Tương tự như product report) ---
-        Font headerFont = workbook.createFont(); headerFont.setBold(true); headerFont.setFontHeightInPoints((short) 12);
-        Font titleFont = workbook.createFont(); titleFont.setBold(true); titleFont.setFontHeightInPoints((short) 16);
-        Font tableHeaderFont = workbook.createFont(); tableHeaderFont.setBold(true); tableHeaderFont.setColor(IndexedColors.BLACK.getIndex());
+        Font headerFont = workbook.createFont();
+        headerFont.setBold(true);
+        headerFont.setFontHeightInPoints((short) 12);
+        Font titleFont = workbook.createFont();
+        titleFont.setBold(true);
+        titleFont.setFontHeightInPoints((short) 16);
+        Font tableHeaderFont = workbook.createFont();
+        tableHeaderFont.setBold(true);
+        tableHeaderFont.setColor(IndexedColors.BLACK.getIndex());
 
         // --- Cell Styles (Tương tự như product report) ---
-        CellStyle titleStyle = workbook.createCellStyle(); titleStyle.setFont(titleFont); titleStyle.setAlignment(HorizontalAlignment.CENTER);
-        CellStyle headerInfoStyle = workbook.createCellStyle(); headerInfoStyle.setFont(headerFont); headerInfoStyle.setAlignment(HorizontalAlignment.LEFT);
-        CellStyle tableHeaderStyle = workbook.createCellStyle(); tableHeaderStyle.setFont(tableHeaderFont);
-        tableHeaderStyle.setBorderTop(BorderStyle.THIN); tableHeaderStyle.setBorderBottom(BorderStyle.THIN);
-        tableHeaderStyle.setBorderLeft(BorderStyle.THIN); tableHeaderStyle.setBorderRight(BorderStyle.THIN);
+        CellStyle titleStyle = workbook.createCellStyle();
+        titleStyle.setFont(titleFont);
+        titleStyle.setAlignment(HorizontalAlignment.CENTER);
+        CellStyle headerInfoStyle = workbook.createCellStyle();
+        headerInfoStyle.setFont(headerFont);
+        headerInfoStyle.setAlignment(HorizontalAlignment.LEFT);
+        CellStyle tableHeaderStyle = workbook.createCellStyle();
+        tableHeaderStyle.setFont(tableHeaderFont);
+        tableHeaderStyle.setBorderTop(BorderStyle.THIN);
+        tableHeaderStyle.setBorderBottom(BorderStyle.THIN);
+        tableHeaderStyle.setBorderLeft(BorderStyle.THIN);
+        tableHeaderStyle.setBorderRight(BorderStyle.THIN);
         tableHeaderStyle.setAlignment(HorizontalAlignment.CENTER);
-        tableHeaderStyle.setFillForegroundColor(IndexedColors.GREY_25_PERCENT.getIndex()); tableHeaderStyle.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+        tableHeaderStyle.setFillForegroundColor(IndexedColors.GREY_25_PERCENT.getIndex());
+        tableHeaderStyle.setFillPattern(FillPatternType.SOLID_FOREGROUND);
         CellStyle dataCellStyle = workbook.createCellStyle();
-        dataCellStyle.setBorderTop(BorderStyle.THIN); dataCellStyle.setBorderBottom(BorderStyle.THIN);
-        dataCellStyle.setBorderLeft(BorderStyle.THIN); dataCellStyle.setBorderRight(BorderStyle.THIN);
-        dataCellStyle.setAlignment(HorizontalAlignment.LEFT); dataCellStyle.setWrapText(true);
-        CellStyle centerDataCellStyle = workbook.createCellStyle(); centerDataCellStyle.cloneStyleFrom(dataCellStyle); centerDataCellStyle.setAlignment(HorizontalAlignment.CENTER);
+        dataCellStyle.setBorderTop(BorderStyle.THIN);
+        dataCellStyle.setBorderBottom(BorderStyle.THIN);
+        dataCellStyle.setBorderLeft(BorderStyle.THIN);
+        dataCellStyle.setBorderRight(BorderStyle.THIN);
+        dataCellStyle.setAlignment(HorizontalAlignment.LEFT);
+        dataCellStyle.setWrapText(true);
+        CellStyle centerDataCellStyle = workbook.createCellStyle();
+        centerDataCellStyle.cloneStyleFrom(dataCellStyle);
+        centerDataCellStyle.setAlignment(HorizontalAlignment.CENTER);
 
 
         // --- Report Title ---
-        Row titleRow = sheet.createRow(0); Cell titleCell = titleRow.createCell(0);
+        Row titleRow = sheet.createRow(0);
+        Cell titleCell = titleRow.createCell(0);
         String reportTitleStr = "DANH SÁCH NGƯỜI DÙNG";
         if (selectedRoleName != null && !selectedRoleName.trim().isEmpty()) {
             reportTitleStr += " (VAI TRÒ: " + selectedRoleName.toUpperCase() + ")";
         }
-        titleCell.setCellValue(reportTitleStr); titleCell.setCellStyle(titleStyle);
+        titleCell.setCellValue(reportTitleStr);
+        titleCell.setCellStyle(titleStyle);
         // Số cột: STT, Mã ND, Họ tên, Email, SĐT, Địa chỉ, Vai trò, P.Thức Login (8 cột)
         sheet.addMergedRegion(new org.apache.poi.ss.util.CellRangeAddress(0, 0, 0, 7));
 
         // --- Report Info ---
-        Row staffRow = sheet.createRow(2); Cell staffLabelCell = staffRow.createCell(0);
-        staffLabelCell.setCellValue("Người lập báo cáo:"); Cell staffValueCell = staffRow.createCell(1);
+        Row staffRow = sheet.createRow(2);
+        Cell staffLabelCell = staffRow.createCell(0);
+        staffLabelCell.setCellValue("Người lập báo cáo:");
+        Cell staffValueCell = staffRow.createCell(1);
         // Giả sử InformationDTO có getFullName() hoặc getEmail()
         staffValueCell.setCellValue(currentUser != null ? (currentUser.getFullName() != null ? currentUser.getFullName() : currentUser.getEmail()) : "N/A");
-        staffLabelCell.setCellStyle(headerInfoStyle); staffValueCell.setCellStyle(headerInfoStyle);
+        staffLabelCell.setCellStyle(headerInfoStyle);
+        staffValueCell.setCellStyle(headerInfoStyle);
         sheet.addMergedRegion(new org.apache.poi.ss.util.CellRangeAddress(2, 2, 1, 3));
 
-        Row dateRow = sheet.createRow(3); Cell dateLabelCell = dateRow.createCell(0);
-        dateLabelCell.setCellValue("Ngày in:"); Cell dateValueCell = dateRow.createCell(1);
+        Row dateRow = sheet.createRow(3);
+        Cell dateLabelCell = dateRow.createCell(0);
+        dateLabelCell.setCellValue("Ngày in:");
+        Cell dateValueCell = dateRow.createCell(1);
         dateValueCell.setCellValue(new SimpleDateFormat("dd/MM/yyyy HH:mm:ss").format(new Date()));
-        dateLabelCell.setCellStyle(headerInfoStyle); dateValueCell.setCellStyle(headerInfoStyle);
+        dateLabelCell.setCellStyle(headerInfoStyle);
+        dateValueCell.setCellStyle(headerInfoStyle);
         sheet.addMergedRegion(new org.apache.poi.ss.util.CellRangeAddress(3, 3, 1, 3));
 
         // --- Table Header ---
         Row headerDataRow = sheet.createRow(5);
         String[] columns = {"STT", "Mã ND", "Họ và Tên", "Email", "Số Điện Thoại", "Địa Chỉ", "Vai Trò", "P.Thức Login"};
         for (int i = 0; i < columns.length; i++) {
-            Cell cell = headerDataRow.createCell(i); cell.setCellValue(columns[i]); cell.setCellStyle(tableHeaderStyle);
+            Cell cell = headerDataRow.createCell(i);
+            cell.setCellValue(columns[i]);
+            cell.setCellStyle(tableHeaderStyle);
         }
 
         // --- Table Data ---
-        int rowNum = 6; int stt = 1;
+        int rowNum = 6;
+        int stt = 1;
         for (UserReportDto user : users) {
             Row row = sheet.createRow(rowNum++);
-            row.createCell(0).setCellValue(stt++); row.getCell(0).setCellStyle(centerDataCellStyle);
-            row.createCell(1).setCellValue(user.getId()); row.getCell(1).setCellStyle(centerDataCellStyle);
-            row.createCell(2).setCellValue(user.getFullName()); row.getCell(2).setCellStyle(dataCellStyle);
-            row.createCell(3).setCellValue(user.getEmail()); row.getCell(3).setCellStyle(dataCellStyle);
-            row.createCell(4).setCellValue(user.getPhone()); row.getCell(4).setCellStyle(dataCellStyle);
-            row.createCell(5).setCellValue(user.getAddress()); row.getCell(5).setCellStyle(dataCellStyle);
-            row.createCell(6).setCellValue(user.getRoleName()); row.getCell(6).setCellStyle(dataCellStyle);
-            row.createCell(7).setCellValue(user.getAuthMethods()); row.getCell(7).setCellStyle(dataCellStyle);
+            row.createCell(0).setCellValue(stt++);
+            row.getCell(0).setCellStyle(centerDataCellStyle);
+            row.createCell(1).setCellValue(user.getId());
+            row.getCell(1).setCellStyle(centerDataCellStyle);
+            row.createCell(2).setCellValue(user.getFullName());
+            row.getCell(2).setCellStyle(dataCellStyle);
+            row.createCell(3).setCellValue(user.getEmail());
+            row.getCell(3).setCellStyle(dataCellStyle);
+            row.createCell(4).setCellValue(user.getPhone());
+            row.getCell(4).setCellStyle(dataCellStyle);
+            row.createCell(5).setCellValue(user.getAddress());
+            row.getCell(5).setCellStyle(dataCellStyle);
+            row.createCell(6).setCellValue(user.getRoleName());
+            row.getCell(6).setCellStyle(dataCellStyle);
+            row.createCell(7).setCellValue(user.getAuthMethods());
+            row.getCell(7).setCellStyle(dataCellStyle);
         }
 
         // --- Auto-size columns ---
-        for (int i = 0; i < columns.length; i++) { sheet.autoSizeColumn(i); }
+        for (int i = 0; i < columns.length; i++) {
+            sheet.autoSizeColumn(i);
+        }
         sheet.setColumnWidth(2, 25 * 256); // Họ tên
         sheet.setColumnWidth(3, 30 * 256); // Email
         sheet.setColumnWidth(5, 35 * 256); // Địa chỉ
@@ -408,16 +497,16 @@ public class ExportExcelServiceImpl implements ExportExcelService {
         filename += "_" + new SimpleDateFormat("yyyyMMdd_HHmmss").format(new Date()) + ".xlsx";
         response.setContentType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
         response.setHeader("Content-Disposition", "attachment; filename=\"" + filename + "\"");
-        workbook.write(response.getOutputStream()); workbook.close();
+        workbook.write(response.getOutputStream());
+        workbook.close();
     }
 
     @Override
     public List<String> getAllOrderStatuses() {
         List<String> statuses = new ArrayList<>();
         String sql = "SELECT DISTINCT o.status FROM orders o WHERE o.status IS NOT NULL AND o.status <> '' ORDER BY o.status ASC";
-        Map<String , String> orderStatus = OrderStatus.getOrderStatusMap();
-        for (Map.Entry<String , String> status : orderStatus.entrySet())
-        {
+        Map<String, String> orderStatus = OrderStatus.getOrderStatusMap();
+        for (Map.Entry<String, String> status : orderStatus.entrySet()) {
             statuses.add(status.getKey());
         }
 
@@ -427,29 +516,51 @@ public class ExportExcelServiceImpl implements ExportExcelService {
     /**
      * Lấy danh sách đơn hàng để báo cáo, có thể lọc theo khoảng thời gian và trạng thái.
      *
-     * @param startDateStr   Ngày bắt đầu (yyyy-MM-dd).
-     * @param endDateStr     Ngày kết thúc (yyyy-MM-dd).
-     * @param statusFilter   Trạng thái đơn hàng để lọc.
+     * @param startDateStr Ngày bắt đầu (yyyy-MM-dd).
+     * @param endDateStr   Ngày kết thúc (yyyy-MM-dd).
+     * @param statusFilter Trạng thái đơn hàng để lọc.
      * @return Danh sách OrderReportDto.
      */
     @Override
     public List<OrderReportDto> getOrdersForReport(String startDateStr, String endDateStr, String statusFilter) {
         List<OrderReportDto> result = new ArrayList<>();
-        // SQL để lấy thông tin đơn hàng và tổng hợp chi tiết sản phẩm
-        // GROUP_CONCAT cho MySQL/MariaDB. Điều chỉnh cho DB khác nếu cần.
+
+//        StringBuilder sqlBuilder = new StringBuilder(
+//                "SELECT " +
+//                        "o.id AS order_id, o.time AS order_time, o.total_price, " +
+//                        "o.receiver_name, o.receiver_phone, o.receiver_address, " +
+//                        "o.status AS order_status, o.type_payment, o.status_payment, " +
+//                        "u.full_name AS customer_name, u.email AS customer_email, " +
+//                        "(SELECT GROUP_CONCAT(CONCAT(p.name, ' (SL: ', od.quantity, ')') SEPARATOR '; ') " +
+//                        " FROM order_detail od JOIN products p ON od.product_id = p.id " +
+//                        " WHERE od.order_id = o.id) AS product_details " +
+//                        "FROM orders o " +
+//                        "LEFT JOIN users u ON o.user_id = u.id "
+//        );
+
+        // SQL Optimize
         StringBuilder sqlBuilder = new StringBuilder(
-                "SELECT " +
-                        "o.id AS order_id, o.time AS order_time, o.total_price, " +
-                        "o.receiver_name, o.receiver_phone, o.receiver_address, " +
-                        "o.status AS order_status, o.type_payment, o.status_payment, " +
-                        "u.full_name AS customer_name, u.email AS customer_email, " +
-                        "(SELECT GROUP_CONCAT(CONCAT(p.name, ' (SL: ', od.quantity, ')') SEPARATOR '; ') " +
-                        " FROM order_detail od JOIN products p ON od.product_id = p.id " +
-                        " WHERE od.order_id = o.id) AS product_details " +
-                        "FROM orders o " +
-                        "LEFT JOIN users u ON o.user_id = u.id "
+                "WITH customer_orders AS (\n" +
+                        " SELECT u.id, u.full_name , u.email\n" +
+                        " FROM users u\n" +
+                        "),\n" +
+                        "orderDetai_orders AS (\n" +
+                        "SELECT  od.order_id , GROUP_CONCAT( CONCAT ( pr.name , ' ( SL : ' , od.quantity , ') ' ) SEPARATOR  '| ') AS pr_detail  \n" +
+                        "FROM order_detail od\n" +
+                        "INNER JOIN (SELECT id , name FROM  products ) AS pr ON pr.id = od.product_id\n" +
+                        "GROUP BY od.order_id \n" +
+                        ")\n" +
+                        " SELECT o.id order_id , o.time order_time , o.total_price , o.receiver_name , o.receiver_phone , o.receiver_address,\n" +
+                        " o.status order_status , o.type_payment , o.status_payment , odo.pr_detail AS product_details\n" +
+                        " FROM orders o USE INDEX (IX_TIME_ID_ORDERS) \n" +
+                        " INNER JOIN customer_orders co ON co.id = o.user_id\n" +
+                        " INNER JOIN orderDetai_orders odo ON odo.order_id = o.id"
         );
 
+        // B1 : nếu có nhiều hơn 2 điều kiện => sử dụng List để lưu conditions
+        // B2 : Validation các condition (null hay là có dữ liệu , nếu mà có thì đưa về chuẩn định dạng ,... )
+        // B3 : Nếu có conditions thì add vô StringBuilder  , và add các OderBy
+        // B4 : Chuyển StringBuilder về String nếu có condition thì setParameter cho nó
         List<String> conditions = new ArrayList<>();
         boolean hasStartDate = StringUtils.hasText(startDateStr);
         boolean hasEndDate = StringUtils.hasText(endDateStr);
@@ -465,7 +576,10 @@ public class ExportExcelServiceImpl implements ExportExcelService {
                 conditions.add("o.time >= :startDate");
             }
             if (hasEndDate) {
-                // Để bao gồm cả ngày kết thúc, ta cần lấy đến cuối ngày đó
+                // Để bao gồm cả ngày kết thúc, ta cần lấy đến cuối ngày đó , bởi vì nhiều DB nó lưu ngày cuối sẽ là
+                // 2025-23-07 00:00:00 -> những order của ngày 2025-23-07 23:05:00 ,... đều ko được lấy -> sai
+                // => phải cộng thêm 1 ngày để lấy < hơn (2025-24-07 00:00:00) -> 2025-23-07 23:05:00 ,... sẽ lấy được -> đúng
+
                 Calendar c = Calendar.getInstance();
                 c.setTime(sdf.parse(endDateStr));
                 c.add(Calendar.DAY_OF_MONTH, 1); // Chuyển sang ngày hôm sau
@@ -487,7 +601,7 @@ public class ExportExcelServiceImpl implements ExportExcelService {
         if (!conditions.isEmpty()) {
             sqlBuilder.append("WHERE ").append(String.join(" AND ", conditions));
         }
-        sqlBuilder.append(" ORDER BY o.time DESC, o.id DESC");
+        sqlBuilder.append(" ORDER BY o.time , o.id ");
 
         try {
             Query query = entityManager.createNativeQuery(sqlBuilder.toString());
@@ -537,32 +651,57 @@ public class ExportExcelServiceImpl implements ExportExcelService {
         SimpleDateFormat dateFormatForExcel = new SimpleDateFormat("dd/MM/yyyy HH:mm:ss");
 
         // --- Font Styles (Tương tự như các report khác) ---
-        Font headerFont = workbook.createFont(); headerFont.setBold(true); headerFont.setFontHeightInPoints((short) 12);
-        Font titleFont = workbook.createFont(); titleFont.setBold(true); titleFont.setFontHeightInPoints((short) 16);
-        Font tableHeaderFont = workbook.createFont(); tableHeaderFont.setBold(true); tableHeaderFont.setColor(IndexedColors.BLACK.getIndex());
+        Font headerFont = workbook.createFont();
+        headerFont.setBold(true);
+        headerFont.setFontHeightInPoints((short) 12);
+        Font titleFont = workbook.createFont();
+        titleFont.setBold(true);
+        titleFont.setFontHeightInPoints((short) 16);
+        Font tableHeaderFont = workbook.createFont();
+        tableHeaderFont.setBold(true);
+        tableHeaderFont.setColor(IndexedColors.BLACK.getIndex());
 
         // --- Cell Styles (Tương tự) ---
-        CellStyle titleStyle = workbook.createCellStyle(); titleStyle.setFont(titleFont); titleStyle.setAlignment(HorizontalAlignment.CENTER);
-        CellStyle headerInfoStyle = workbook.createCellStyle(); headerInfoStyle.setFont(headerFont); headerInfoStyle.setAlignment(HorizontalAlignment.LEFT);
-        CellStyle tableHeaderStyle = workbook.createCellStyle(); tableHeaderStyle.setFont(tableHeaderFont);
-        tableHeaderStyle.setBorderTop(BorderStyle.THIN); tableHeaderStyle.setBorderBottom(BorderStyle.THIN);
-        tableHeaderStyle.setBorderLeft(BorderStyle.THIN); tableHeaderStyle.setBorderRight(BorderStyle.THIN);
+        CellStyle titleStyle = workbook.createCellStyle();
+        titleStyle.setFont(titleFont);
+        titleStyle.setAlignment(HorizontalAlignment.CENTER);
+        CellStyle headerInfoStyle = workbook.createCellStyle();
+        headerInfoStyle.setFont(headerFont);
+        headerInfoStyle.setAlignment(HorizontalAlignment.LEFT);
+        CellStyle tableHeaderStyle = workbook.createCellStyle();
+        tableHeaderStyle.setFont(tableHeaderFont);
+        tableHeaderStyle.setBorderTop(BorderStyle.THIN);
+        tableHeaderStyle.setBorderBottom(BorderStyle.THIN);
+        tableHeaderStyle.setBorderLeft(BorderStyle.THIN);
+        tableHeaderStyle.setBorderRight(BorderStyle.THIN);
         tableHeaderStyle.setAlignment(HorizontalAlignment.CENTER);
-        tableHeaderStyle.setFillForegroundColor(IndexedColors.GREY_25_PERCENT.getIndex()); tableHeaderStyle.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+        tableHeaderStyle.setFillForegroundColor(IndexedColors.GREY_25_PERCENT.getIndex());
+        tableHeaderStyle.setFillPattern(FillPatternType.SOLID_FOREGROUND);
         CellStyle dataCellStyle = workbook.createCellStyle();
-        dataCellStyle.setBorderTop(BorderStyle.THIN); dataCellStyle.setBorderBottom(BorderStyle.THIN);
-        dataCellStyle.setBorderLeft(BorderStyle.THIN); dataCellStyle.setBorderRight(BorderStyle.THIN);
-        dataCellStyle.setAlignment(HorizontalAlignment.LEFT); dataCellStyle.setWrapText(true);
-        CellStyle centerDataCellStyle = workbook.createCellStyle(); centerDataCellStyle.cloneStyleFrom(dataCellStyle); centerDataCellStyle.setAlignment(HorizontalAlignment.CENTER);
-        CellStyle numberCellStyle = workbook.createCellStyle(); numberCellStyle.cloneStyleFrom(dataCellStyle); numberCellStyle.setAlignment(HorizontalAlignment.RIGHT);
-        CellStyle currencyCellStyle = workbook.createCellStyle(); currencyCellStyle.cloneStyleFrom(numberCellStyle);
-        CreationHelper createHelper = workbook.getCreationHelper(); currencyCellStyle.setDataFormat(createHelper.createDataFormat().getFormat("#,##0"));
-        CellStyle dateTimeCellStyle = workbook.createCellStyle(); dateTimeCellStyle.cloneStyleFrom(dataCellStyle);
+        dataCellStyle.setBorderTop(BorderStyle.THIN);
+        dataCellStyle.setBorderBottom(BorderStyle.THIN);
+        dataCellStyle.setBorderLeft(BorderStyle.THIN);
+        dataCellStyle.setBorderRight(BorderStyle.THIN);
+        dataCellStyle.setAlignment(HorizontalAlignment.LEFT);
+        dataCellStyle.setWrapText(true);
+        CellStyle centerDataCellStyle = workbook.createCellStyle();
+        centerDataCellStyle.cloneStyleFrom(dataCellStyle);
+        centerDataCellStyle.setAlignment(HorizontalAlignment.CENTER);
+        CellStyle numberCellStyle = workbook.createCellStyle();
+        numberCellStyle.cloneStyleFrom(dataCellStyle);
+        numberCellStyle.setAlignment(HorizontalAlignment.RIGHT);
+        CellStyle currencyCellStyle = workbook.createCellStyle();
+        currencyCellStyle.cloneStyleFrom(numberCellStyle);
+        CreationHelper createHelper = workbook.getCreationHelper();
+        currencyCellStyle.setDataFormat(createHelper.createDataFormat().getFormat("#,##0"));
+        CellStyle dateTimeCellStyle = workbook.createCellStyle();
+        dateTimeCellStyle.cloneStyleFrom(dataCellStyle);
         dateTimeCellStyle.setDataFormat(createHelper.createDataFormat().getFormat("dd/mm/yyyy hh:mm:ss"));
 
 
         // --- Report Title ---
-        Row titleRow = sheet.createRow(0); Cell titleCell = titleRow.createCell(0);
+        Row titleRow = sheet.createRow(0);
+        Cell titleCell = titleRow.createCell(0);
         String reportTitleStr = "DANH SÁCH ĐƠN HÀNG";
         List<String> filterDescriptions = new ArrayList<>();
         if (StringUtils.hasText(startDate)) filterDescriptions.add("Từ: " + startDate);
@@ -571,58 +710,81 @@ public class ExportExcelServiceImpl implements ExportExcelService {
         if (!filterDescriptions.isEmpty()) {
             reportTitleStr += " (" + String.join(", ", filterDescriptions) + ")";
         }
-        titleCell.setCellValue(reportTitleStr); titleCell.setCellStyle(titleStyle);
+        titleCell.setCellValue(reportTitleStr);
+        titleCell.setCellStyle(titleStyle);
         // Số cột: STT, Mã ĐH, Ngày Đặt, Khách Hàng, Email KH, Người Nhận, SĐT Nhận, Địa Chỉ, Tổng Tiền, TT ĐH, HTTT, TT TT, Chi Tiết SP (13 cột)
         sheet.addMergedRegion(new org.apache.poi.ss.util.CellRangeAddress(0, 0, 0, 12));
 
         // --- Report Info (Người lập, Ngày in) ---
-        Row staffRow = sheet.createRow(2); Cell staffLabelCell = staffRow.createCell(0);
-        staffLabelCell.setCellValue("Người lập báo cáo:"); Cell staffValueCell = staffRow.createCell(1);
+        Row staffRow = sheet.createRow(2);
+        Cell staffLabelCell = staffRow.createCell(0);
+        staffLabelCell.setCellValue("Người lập báo cáo:");
+        Cell staffValueCell = staffRow.createCell(1);
         staffValueCell.setCellValue(currentUser != null ? (currentUser.getFullName() != null ? currentUser.getFullName() : currentUser.getEmail()) : "N/A");
-        staffLabelCell.setCellStyle(headerInfoStyle); staffValueCell.setCellStyle(headerInfoStyle);
+        staffLabelCell.setCellStyle(headerInfoStyle);
+        staffValueCell.setCellStyle(headerInfoStyle);
         sheet.addMergedRegion(new org.apache.poi.ss.util.CellRangeAddress(2, 2, 1, 3));
-        Row dateRow = sheet.createRow(3); Cell dateLabelCell = dateRow.createCell(0);
-        dateLabelCell.setCellValue("Ngày in:"); Cell dateValueCell = dateRow.createCell(1);
+        Row dateRow = sheet.createRow(3);
+        Cell dateLabelCell = dateRow.createCell(0);
+        dateLabelCell.setCellValue("Ngày in:");
+        Cell dateValueCell = dateRow.createCell(1);
         dateValueCell.setCellValue(dateFormatForExcel.format(new Date()));
-        dateLabelCell.setCellStyle(headerInfoStyle); dateValueCell.setCellStyle(headerInfoStyle);
+        dateLabelCell.setCellStyle(headerInfoStyle);
+        dateValueCell.setCellStyle(headerInfoStyle);
         sheet.addMergedRegion(new org.apache.poi.ss.util.CellRangeAddress(3, 3, 1, 3));
 
         // --- Table Header ---
         Row headerDataRow = sheet.createRow(5);
         String[] columns = {"STT", "Mã ĐH", "Ngày Đặt", "Khách Hàng", "Email KH", "Người Nhận", "SĐT Nhận", "Địa Chỉ Giao", "Tổng Tiền", "TT ĐH", "HT Thanh Toán", "TT Thanh Toán", "Chi Tiết Sản Phẩm"};
         for (int i = 0; i < columns.length; i++) {
-            Cell cell = headerDataRow.createCell(i); cell.setCellValue(columns[i]); cell.setCellStyle(tableHeaderStyle);
+            Cell cell = headerDataRow.createCell(i);
+            cell.setCellValue(columns[i]);
+            cell.setCellStyle(tableHeaderStyle);
         }
 
         // --- Table Data ---
-        int rowNum = 6; int stt = 1;
+        int rowNum = 6;
+        int stt = 1;
         for (OrderReportDto order : orders) {
             Row row = sheet.createRow(rowNum++);
-            row.createCell(0).setCellValue(stt++); row.getCell(0).setCellStyle(centerDataCellStyle);
-            row.createCell(1).setCellValue(order.getId()); row.getCell(1).setCellStyle(centerDataCellStyle);
+            row.createCell(0).setCellValue(stt++);
+            row.getCell(0).setCellStyle(centerDataCellStyle);
+            row.createCell(1).setCellValue(order.getId());
+            row.getCell(1).setCellStyle(centerDataCellStyle);
 
             Cell orderTimeCell = row.createCell(2);
             if (order.getOrderTime() != null) orderTimeCell.setCellValue(order.getOrderTime());
             orderTimeCell.setCellStyle(dateTimeCellStyle);
 
-            row.createCell(3).setCellValue(order.getCustomerFullName()); row.getCell(3).setCellStyle(dataCellStyle);
-            row.createCell(4).setCellValue(order.getCustomerEmail()); row.getCell(4).setCellStyle(dataCellStyle);
-            row.createCell(5).setCellValue(order.getReceiverName()); row.getCell(5).setCellStyle(dataCellStyle);
-            row.createCell(6).setCellValue(order.getReceiverPhone()); row.getCell(6).setCellStyle(dataCellStyle);
-            row.createCell(7).setCellValue(order.getReceiverAddress()); row.getCell(7).setCellStyle(dataCellStyle);
+            row.createCell(3).setCellValue(order.getCustomerFullName());
+            row.getCell(3).setCellStyle(dataCellStyle);
+            row.createCell(4).setCellValue(order.getCustomerEmail());
+            row.getCell(4).setCellStyle(dataCellStyle);
+            row.createCell(5).setCellValue(order.getReceiverName());
+            row.getCell(5).setCellStyle(dataCellStyle);
+            row.createCell(6).setCellValue(order.getReceiverPhone());
+            row.getCell(6).setCellStyle(dataCellStyle);
+            row.createCell(7).setCellValue(order.getReceiverAddress());
+            row.getCell(7).setCellStyle(dataCellStyle);
 
             Cell totalPriceCell = row.createCell(8);
             if (order.getTotalPrice() != null) totalPriceCell.setCellValue(order.getTotalPrice());
             totalPriceCell.setCellStyle(currencyCellStyle);
 
-            row.createCell(9).setCellValue(order.getOrderStatus()); row.getCell(9).setCellStyle(dataCellStyle);
-            row.createCell(10).setCellValue(order.getPaymentType()); row.getCell(10).setCellStyle(dataCellStyle);
-            row.createCell(11).setCellValue(order.getPaymentStatus()); row.getCell(11).setCellStyle(dataCellStyle);
-            row.createCell(12).setCellValue(order.getProductDetails()); row.getCell(12).setCellStyle(dataCellStyle);
+            row.createCell(9).setCellValue(order.getOrderStatus());
+            row.getCell(9).setCellStyle(dataCellStyle);
+            row.createCell(10).setCellValue(order.getPaymentType());
+            row.getCell(10).setCellStyle(dataCellStyle);
+            row.createCell(11).setCellValue(order.getPaymentStatus());
+            row.getCell(11).setCellStyle(dataCellStyle);
+            row.createCell(12).setCellValue(order.getProductDetails());
+            row.getCell(12).setCellStyle(dataCellStyle);
         }
 
         // --- Auto-size columns ---
-        for (int i = 0; i < columns.length; i++) { sheet.autoSizeColumn(i); }
+        for (int i = 0; i < columns.length; i++) {
+            sheet.autoSizeColumn(i);
+        }
         // Điều chỉnh chiều rộng cột cụ thể nếu cần
         sheet.setColumnWidth(3, 25 * 256); // Khách Hàng
         sheet.setColumnWidth(4, 30 * 256); // Email KH
@@ -632,13 +794,14 @@ public class ExportExcelServiceImpl implements ExportExcelService {
         // --- Write output to HttpServletResponse ---
         String filename = "DanhSachDonHang";
         // Thêm bộ lọc vào tên file nếu có
-        if (StringUtils.hasText(startDate)) filename += "_Tu" + startDate.replace("-","");
-        if (StringUtils.hasText(endDate)) filename += "_Den" + endDate.replace("-","");
+        if (StringUtils.hasText(startDate)) filename += "_Tu" + startDate.replace("-", "");
+        if (StringUtils.hasText(endDate)) filename += "_Den" + endDate.replace("-", "");
         if (StringUtils.hasText(selectedStatus)) filename += "_" + selectedStatus.replaceAll("[^a-zA-Z0-9]", "");
 
         filename += "_" + new SimpleDateFormat("yyyyMMddHHmmss").format(new Date()) + ".xlsx";
         response.setContentType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
         response.setHeader("Content-Disposition", "attachment; filename=\"" + filename + "\"");
-        workbook.write(response.getOutputStream()); workbook.close();
+        workbook.write(response.getOutputStream());
+        workbook.close();
     }
 }

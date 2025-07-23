@@ -14,9 +14,13 @@ import java.util.List;
      List<ProductReportDto> getProductsForReport(String factory);
      List<String> getAllFactories();
      void generateProductsExcelReport(List<ProductReportDto> products, InformationDTO informationDTO, String selectedFactory, HttpServletResponse response) throws IOException;
+
+
      List<UserReportDto> getUsersForReport(String roleIdFilter);
      List<RoleSimpleDto> getAllRoles();
      void generateUsersExcelReport(List<UserReportDto> users, InformationDTO currentUser, String selectedRoleName, HttpServletResponse response) throws IOException ;
+
+
      List<String> getAllOrderStatuses();
      List<OrderReportDto> getOrdersForReport(String startDateStr, String endDateStr, String statusFilter);
      void generateOrdersExcelReport(List<OrderReportDto> orders, InformationDTO currentUser,
