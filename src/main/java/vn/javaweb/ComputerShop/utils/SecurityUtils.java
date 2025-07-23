@@ -21,4 +21,6 @@ public class SecurityUtils {
         return (String)session.getAttribute("email");
     }
 
+    public static final Long currentTime = System.currentTimeMillis();
+
 }

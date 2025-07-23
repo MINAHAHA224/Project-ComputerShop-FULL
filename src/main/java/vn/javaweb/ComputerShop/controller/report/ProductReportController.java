@@ -4,6 +4,7 @@ package vn.javaweb.ComputerShop.controller.report;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -12,6 +13,8 @@ import org.springframework.web.bind.annotation.RequestParam;
 import vn.javaweb.ComputerShop.domain.dto.request.InformationDTO;
 import vn.javaweb.ComputerShop.domain.dto.response.ProductReportDto;
 import vn.javaweb.ComputerShop.service.export.ExportExcelService;
+import vn.javaweb.ComputerShop.utils.ConstantVariable;
+import vn.javaweb.ComputerShop.utils.SecurityUtils;
 
 import java.io.IOException;
 import java.text.SimpleDateFormat;
@@ -21,6 +24,7 @@ import java.util.List;
 @Controller
 @RequiredArgsConstructor
 @RequestMapping("/admin/product/report")
+@Slf4j
 public class ProductReportController {
 
 
@@ -34,7 +38,7 @@ public class ProductReportController {
             @RequestParam(name = "factory", required = false) String factory, // Lấy factory từ request param
             HttpSession session,
             Model model) {
-        InformationDTO informationDTO = (InformationDTO) session.getAttribute("informationDTO");
+        InformationDTO informationDTO = SecurityUtils.getInformationDtoFromSession(session);
 
         try {
             List<ProductReportDto> listProducts = this.exportExcelService.getProductsForReport(factory);
@@ -52,9 +56,10 @@ public class ProductReportController {
             }
             model.addAttribute("factories", allFactories); // Danh sách các hãng để người dùng có thể đổi
         } catch (Exception e) {
-            e.printStackTrace();
+            log.error(ConstantVariable.ERROR_MES + "previewProductExcel : {} " , e.getMessage());
             model.addAttribute("error_message", "Lỗi khi chuẩn bị dữ liệu xem trước: " + e.getMessage());
         }
+
         return "admin/product/productExcelPreview"; // Tên file JSP mới cho xem trước sản phẩm
     }
 
@@ -66,7 +71,7 @@ public class ProductReportController {
             HttpSession session,
             HttpServletResponse response) {
 
-        InformationDTO informationDTO = (InformationDTO) session.getAttribute("informationDTO");
+        InformationDTO informationDTO = SecurityUtils.getInformationDtoFromSession(session);
 
         try {
             List<ProductReportDto> listProducts = this.exportExcelService.getProductsForReport(factory);
@@ -79,12 +84,13 @@ public class ProductReportController {
             }
             this.exportExcelService.generateProductsExcelReport(listProducts, informationDTO, factory, response);
         } catch (Exception e) {
-            e.printStackTrace();
-            try {
+           log.error( ConstantVariable.ERROR_MES + "downloadProductExcel : {} " , e.getMessage());
+
+           try {
                 response.setContentType("text/html; charset=UTF-8");
                 response.getWriter().println("<script>alert('Lỗi khi tạo file Excel: " + e.getMessage().replace("'", "\\'") + "'); window.history.back();</script>");
             } catch (IOException ex) {
-                ex.printStackTrace();
+               log.error(ConstantVariable.ERROR_MES + "downloadProductExcel.createWriterExcel : {} " , ex.getMessage());
             }
         }
     }
